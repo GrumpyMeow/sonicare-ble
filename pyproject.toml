@@ -1,12 +1,12 @@
 [tool.poetry]
-name = "oralb-ble"
-version = "0.17.1"
-description = "Bluetooth library for Oral B devices"
-authors = ["J. Nick Koston <bluetooth@koston.org>"]
+name = "sonicare-bletb"
+version = "0.0.2"
+description = "Bluetooth library for Sonicare toothbrushes"
+authors = ["S. Schutten <schutten@hotmail.com>"]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/Bluetooth-Devices/oralb-ble"
-documentation = "https://oralb-ble.readthedocs.io"
+repository = "https://github.com/Bluetooth-Devices/sonicare-bletb"
+documentation = "https://sonicare-bletb.readthedocs.io"
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Developers",
@@ -15,12 +15,12 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
 ]
 packages = [
-    { include = "oralb_ble", from = "src" },
+    { include = "sonicare_bletb", from = "src" },
 ]
 
 [tool.poetry.urls]
-"Bug Tracker" = "https://github.com/Bluetooth-Devices/oralb-ble/issues"
-"Changelog" = "https://github.com/Bluetooth-Devices/oralb-ble/blob/main/CHANGELOG.md"
+"Bug Tracker" = "https://github.com/Bluetooth-Devices/sonicare-bletb/issues"
+"Changelog" = "https://github.com/Bluetooth-Devices/sonicare-bletb/blob/main/CHANGELOG.md"
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -53,11 +53,11 @@ pytest-asyncio = ">=0.20.0"
 [tool.semantic_release]
 branch = "main"
 version_toml = "pyproject.toml:tool.poetry.version"
-version_variable = "src/oralb_ble/__init__.py:__version__"
+version_variable = "src/sonicare_bletb/__init__.py:__version__"
 build_command = "pip install poetry && poetry build"
 
 [tool.pytest.ini_options]
-addopts = "-v -Wdefault --cov=oralb_ble --cov-report=term-missing:skip-covered"
+addopts = "-v -Wdefault --cov=sonicare_bletb --cov-report=term-missing:skip-covered"
 pythonpath = ["src"]
 
 [tool.coverage.run]
@@ -73,7 +73,7 @@ exclude_lines = [
 
 [tool.isort]
 profile = "black"
-known_first_party = ["oralb_ble", "tests"]
+known_first_party = ["sonicare_bletb", "tests"]
 
 [tool.mypy]
 check_untyped_defs = true

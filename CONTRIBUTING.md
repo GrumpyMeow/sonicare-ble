@@ -24,7 +24,7 @@ Look through the GitHub issues for features. Anything tagged with "enhancement" 
 
 ### Write Documentation
 
-OralB BLE could always use more documentation, whether as part of the official OralB BLE docs, in docstrings, or even on the web in blog posts, articles, and such.
+Sonicare BLEtb could always use more documentation, whether as part of the official Sonicare BLEtb docs, in docstrings, or even on the web in blog posts, articles, and such.
 
 ### Submit Feedback
 
@@ -43,7 +43,7 @@ Ready to contribute? Here's how to set yourself up for local development.
 2. Clone your fork locally:
 
    ```shell
-   $ git clone git@github.com:your_name_here/oralb-ble.git
+   $ git clone git@github.com:your_name_here/sonicare-bletb.git
    ```
 
 3. Install the project dependencies with [Poetry](https://python-poetry.org):
@@ -114,4 +114,4 @@ $ pytest tests
 
 The deployment should be automated and can be triggered from the Semantic Release workflow in GitHub. The next version will be based on [the commit logs](https://python-semantic-release.readthedocs.io/en/latest/commit-log-parsing.html#commit-log-parsing). This is done by [python-semantic-release](https://python-semantic-release.readthedocs.io/en/latest/index.html) via a GitHub action.
 
-[gh-issues]: https://github.com/Bluetooth-Devices/oralb-ble/issues
+[gh-issues]: https://github.com/Bluetooth-Devices/sonicare-bletb/issues
