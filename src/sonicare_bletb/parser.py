@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 
 from bleak import BLEDevice
+from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 from bluetooth_data_tools import short_address
 from bluetooth_sensor_state_data import BluetoothData
@@ -14,12 +15,17 @@ from home_assistant_bluetooth import BluetoothServiceInfo
 from sensor_state_data import SensorDeviceClass, SensorUpdate, Units
 from sensor_state_data.enum import StrEnum
 
-from .const import (
+from .const import (  # Characteristics; CHARACTERISTIC_HANDLE_TIME,; CHARACTERISTIC_BRUSHING_SESSION_ID,; CHARACTERISTIC_40C0,; Other consts
     BRUSHING_UPDATE_INTERVAL_SECONDS,
-    CHARACTERISTIC_BATTERY,
+    CHARACTERISTIC_40A0,
+    CHARACTERISTIC_4030,
+    CHARACTERISTIC_AVAILABLE_BRUSHING_ROUTINE_4080,
+    CHARACTERISTIC_BATTERY_LEVEL,
     CHARACTERISTIC_BRUSHING_TIME,
-    CHARACTERISTIC_CURRENT_TIME,
-    CHARACTERISTIC_STATE,
+    CHARACTERISTIC_INTENSITY,
+    CHARACTERISTIC_LOADED_SESSION_ID,
+    CHARACTERISTIC_ROUTINE_LENGTH,
+    CHARACTERISTIC_UPDATED_HANDLE_SESSION_STATE,
     NOT_BRUSHING_UPDATE_INTERVAL_SECONDS,
     TIMEOUT_RECENTLY_BRUSHING,
 )
@@ -28,15 +34,16 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class SonicareSensor(StrEnum):
+    BATTERY_LEVEL = "battery_level"
     BRUSHING_TIME = "brushing_time"
-    CURRENT_TIME = "current_time"
-    SECTOR = "sector"
-    NUMBER_OF_SECTORS = "number_of_sectors"
-    SECTOR_TIMER = "sector_timer"
-    TOOTHBRUSH_STATE = "toothbrush_state"
-    MODE = "mode"
+    HANDLE_TIME = "handle_time"
+    HANDLE_SESSION_STATE = "handle_session_state"
+    BRUSHING_SESSION_ID = "brushing_session_id"
+    LOADED_SESSION_ID = "loaded_session_id"
+    INTENSITY = "intensity"
+    AVAILABLE_BRUSHING_ROUTINE = "available_brushing_routine"
+    ROUTINE_LENGTH = "routine_length"
     SIGNAL_STRENGTH = "signal_strength"
-    BATTERY_PERCENT = "battery_percent"
 
 
 class SonicareBinarySensor(StrEnum):
@@ -59,15 +66,21 @@ DEVICE_TYPES = {
 STATES = {
     0: "off",
     1: "standby",
-    2: "run",
-    3: "charge",
+    2: "brushing",
+    3: "charging",
     4: "shutdown",
-    6: "validate",
-    7: "lightsout",
+    5: "validate",
+    6: "unknown6",
+    7: "unknown7",
 }
 
 
 SONICARE_MANUFACTURER = 477
+
+
+BYTES_TO_MODEL = {
+    # b"\x062k": Models.HX6340,
+}
 
 
 class SonicareBluetoothDeviceData(BluetoothData):
@@ -132,71 +145,98 @@ class SonicareBluetoothDeviceData(BluetoothData):
         client = await establish_connection(
             BleakClientWithServiceCache, ble_device, ble_device.address
         )
+
+        async def process_characteristic_value(characteristic_uuid, value):
+            _LOGGER.debug(f"Update characteristic {characteristic_uuid} with {value}")
+            if characteristic_uuid == CHARACTERISTIC_BATTERY_LEVEL:
+                self.update_sensor(
+                    str(SonicareSensor.BATTERY_LEVEL),
+                    Units.PERCENTAGE,
+                    value[0],
+                    SensorDeviceClass.BATTERY,
+                    "Battery",
+                )
+            elif characteristic_uuid == CHARACTERISTIC_UPDATED_HANDLE_SESSION_STATE:
+                state = STATES.get(value[0], f"unknown state value {value[0]}")
+                self.update_sensor(
+                    str(SonicareSensor.HANDLE_SESSION_STATE),
+                    None,
+                    state,
+                    None,
+                    "Handle session state",
+                )
+            elif characteristic_uuid == CHARACTERISTIC_BRUSHING_TIME:
+                self.update_sensor(
+                    str(SonicareSensor.BRUSHING_TIME),
+                    None,
+                    value[0],
+                    None,
+                    "Brushing time",
+                )
+            elif characteristic_uuid == CHARACTERISTIC_AVAILABLE_BRUSHING_ROUTINE_4080:
+                self.update_sensor(
+                    str(SonicareSensor.AVAILABLE_BRUSHING_ROUTINE),
+                    None,
+                    value[0],
+                    None,
+                    "Available brushing routine",
+                )
+            elif characteristic_uuid == CHARACTERISTIC_ROUTINE_LENGTH:
+                self.update_sensor(
+                    str(SonicareSensor.ROUTINE_LENGTH),
+                    None,
+                    value[0],
+                    None,
+                    "Routine length",
+                )
+            elif characteristic_uuid == CHARACTERISTIC_INTENSITY:
+                self.update_sensor(
+                    str(SonicareSensor.INTENSITY),
+                    None,
+                    value[0],
+                    None,
+                    "Intensity",
+                )
+            elif characteristic_uuid == CHARACTERISTIC_LOADED_SESSION_ID:
+                self.update_sensor(
+                    str(SonicareSensor.LOADED_SESSION_ID),
+                    None,
+                    value[0],
+                    None,
+                    "Loaded session id",
+                )
+            else:
+                _LOGGER.debug(f"Unknown characteristic {characteristic_uuid} {value}")
+
+        async def _async_handle_handle_state(
+            characteristic: BleakGATTCharacteristic, data: bytearray
+        ) -> None:
+            """Handle the device going unavailable."""
+            # _LOGGER.debug(
+            #     f"Notification of_characteristic={characteristic.uuid} data={data}"
+            # )
+            await process_characteristic_value(characteristic.uuid, data)
+
+            # Work in progress: How to notify HASS of new data?
+
         for service in client.services:
-            _LOGGER.debug("Service uuid=%s handle=%s", service.uuid, service.handle)
             for characteristic in service.characteristics:
                 try:
                     value_char = client.services.get_characteristic(characteristic.uuid)
-                    value_payload = await client.read_gatt_char(value_char)
-                    _LOGGER.error(
-                        "Characteristic uuid=%s handle=%s ValueChar=%s ValuePayload=%s",
-                        characteristic.uuid,
-                        characteristic.handle,
-                        value_char,
-                        value_payload,
-                    )
+                    if "read" in value_char.properties:
+                        value = await client.read_gatt_char(characteristic.uuid)
+                        await process_characteristic_value(characteristic.uuid, value)
+                    if "indicate" in value_char.properties:
+                        await client.start_notify(
+                            char_specifier=characteristic.uuid,
+                            callback=_async_handle_handle_state,
+                        )
+                    if "notify" in value_char.properties:
+                        await client.start_notify(
+                            char_specifier=characteristic.uuid,
+                            callback=_async_handle_handle_state,
+                        )
                 except Exception:
-                    _LOGGER.debug("Exception reading characteristic")
-
-        try:
-            battery_char = client.services.get_characteristic(CHARACTERISTIC_BATTERY)
-            battery_payload = await client.read_gatt_char(battery_char)
-
-            brushing_time_char = client.services.get_characteristic(
-                CHARACTERISTIC_BRUSHING_TIME
-            )
-            brushing_time_payload = await client.read_gatt_char(brushing_time_char)
-
-            state_char = client.services.get_characteristic(CHARACTERISTIC_STATE)
-            state_payload = await client.read_gatt_char(state_char)
-            tb_state = STATES.get(state_payload[0], f"unknown state {state_payload[0]}")
-
-            current_time_char = client.services.get_characteristic(
-                CHARACTERISTIC_CURRENT_TIME
-            )
-            current_time_payload = await client.read_gatt_char(current_time_char)
-        finally:
-            _LOGGER.error("Unable to get data in async_poll")
-            await client.disconnect()
-        self.update_sensor(
-            str(SonicareSensor.BRUSHING_TIME),
-            None,
-            brushing_time_payload,
-            None,
-            "Brushing time",
-        )
-        self.update_sensor(
-            str(SonicareSensor.BATTERY_PERCENT),
-            Units.PERCENTAGE,
-            battery_payload[0],
-            SensorDeviceClass.BATTERY,
-            "Battery",
-        )
-
-        self.update_sensor(
-            str(SonicareSensor.TOOTHBRUSH_STATE),
-            None,
-            tb_state,
-            None,
-            "Toothbrush State",
-        )
-
-        self.update_sensor(
-            str(SonicareSensor.CURRENT_TIME),
-            None,
-            current_time_payload,
-            None,
-            "Toothbrush current time",
-        )
+                    _LOGGER.debug(f"Error on characteristic {characteristic.uuid}")
 
         return self._finish_update()
