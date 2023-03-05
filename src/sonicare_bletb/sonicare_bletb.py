@@ -7,6 +7,8 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any, TypeVar
 
+from bleak_retry_connector import BLEAK_RETRY_EXCEPTIONS as BLEAK_EXCEPTIONS
+
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
@@ -152,6 +154,14 @@ class SonicareBLETB:
     @property
     def handle_time(self) -> datetime:
         return self._state.handle_time
+
+    @property
+    def brushing_session_id(self) -> int:
+        return self._state.brushing_session_id
+
+    @property
+    def last_session_id(self) -> int:
+        return self._state.last_session_id
 
     async def stop(self) -> None:
         """Stop the SonicareBLETB."""
