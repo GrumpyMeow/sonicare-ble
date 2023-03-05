@@ -13,6 +13,6 @@ class SonicareBLETBState:
     available_brushing_routine: int = 0
     intensity: int = 0
     loaded_session_id: int = 0
-    handle_time: datetime = 0
+    handle_time: datetime
     brushing_session_id: int = 0
     last_session_id: int = 0
