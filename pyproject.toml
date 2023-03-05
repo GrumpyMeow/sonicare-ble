@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sonicare-bletb"
-version = "0.0.0"
+version = "0.0.3"
 description = "Bluetooth library for Sonicare toothbrushes"
 authors = ["S. Schutten <schutten@hotmail.com>"]
 license = "MIT"
